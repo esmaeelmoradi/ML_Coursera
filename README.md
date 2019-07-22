@@ -1,2 +1,2 @@
 # ML_Coursera
-This repository is for the ML project
+Please look at the "Report.pdf" for the report of this project.
