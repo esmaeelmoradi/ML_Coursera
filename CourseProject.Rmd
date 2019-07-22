@@ -1,0 +1,125 @@
+---
+title: "ML-Project.R"
+author: "Esmaeel Moradi"
+date: "7/21/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Data
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+### Loadinmg packages, Reading data, and cleaning data
+```{r setup, include=TRUE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(e1071)
+library(randomForest)
+setwd("/Users/esmaeel/Desktop/CorseraDataScienceLearning/ML/Project")
+training = read.csv("pml-training.csv")
+testing = read.csv("pml-testing.csv") 
+```
+
+Now, we remove all the unnecessary columns and columns with NA's.
+```{r, include=TRUE}
+# the first 7 rows do not matter, so we remove them
+training_clean <- training[,8:length(colnames(training))]
+testing_clean <- testing[,8:length(colnames(testing))]
+
+# There are some columns with majority NA's, these columns will not play a roll in prediction
+training_clean <- training_clean[, colSums(is.na(training_clean)) == 0] 
+testing_clean <- testing_clean[, colSums(is.na(testing_clean)) == 0] 
+
+# the columns with no variance in them are basically not playing a roll in prediction
+nzv <- nearZeroVar(training_clean,saveMetrics=TRUE)
+variable_zero <- sum(nzv$nzv)
+
+if ((variable_zero>0)) {
+        training_clean <- training_clean[,nzv$nzv==FALSE]
+}
+
+```
+
+### Cross Validation
+To make sure that the test data set is not being used in our model training, we do cross validation in this project. The cleaned training data set is divided into two train and test data sets.
+
+```{r, include=TRUE}
+in_training_clean <- createDataPartition(training_clean$classe, p=0.70, list=F)
+training_clean_train <- training_clean[in_training_clean, ]
+training_clean_valid <- training_clean[-in_training_clean, ]
+```
+
+## Prediction Model
+
+### Train the model
+The training data set is being used to train a random forest. Also, we use a 5-fold cross-validation technique in this model. It means that we tend to divide our training data set into 5 sub sets and select one of them as test and train the model on rest and then repeat the process for 5 times and present the average. 
+
+```{r, include=TRUE}
+control_method <- trainControl(method="cv", 5)
+rf_model <- train(classe ~ ., data=training_clean_train, method="rf",
+                 trControl=control_method, ntree=251)
+rf_model
+```
+
+Now let's predect the results:
+
+```{r, include=TRUE}
+rf_predict <- predict(rf_model, training_clean_valid)
+confusionMatrix(training_clean_valid$classe, rf_predict)
+```
+
+as we can see the accuracy is: 0.9917.
+
+### Run model on Test data set
+
+```{r, include=TRUE}
+test_results <- predict(rf_model, 
+                   testing_clean[, -length(names(testing_clean))])
+#test_results <- predict(rf_model, testing_clean)
+#confusionMatrix(testing_clean$classe, test_results)
+test_results
+```
+
+### Showing the decision tree:
+
+```{r, include=TRUE}
+tree_Model <- rpart(classe ~ ., data=training_clean_train, method="class")
+fancyRpartPlot(tree_Model)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
